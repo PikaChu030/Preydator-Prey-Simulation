@@ -9,7 +9,7 @@
 To get Python 3 on Cirrus, run:
 
 ```console
-$ module load anaconda/python3
+$ module load anaconda3/2023.09
 ```
 
 The Anaconda Python distribution includes numpy and many other useful Python packages.
