@@ -51,100 +51,114 @@ def simCommLineIntf():
         args.death_foxes, args.diffusion_foxes, args.delta_t, args.time_step,
         args.duration, args.landscape_file, args.mouse_seed, args.fox_seed)
 
-def sim(r, a, k, b, m, l, dt, t, d, lfile, mseed, fseed):
+def sim(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth_rate, fox_death_rate, fox_diffusion_rate, delta_t, time_step_interval, duration, landscape_file, mouse_seed, fox_seed):
     print("Predator-prey simulation", getVersion())
-    with open(lfile, "r") as f:
-        w, h = [int(i) for i in f.readline().split(" ")]
-        print("Width: {} Height: {}".format(w, h))
-        wh = w + 2  # Width including halo
-        hh = h + 2  # Height including halo
-        lscape = np.zeros((hh, wh), int)
+    with open(landscape_file, "r") as f:
+        width, height = [int(i) for i in f.readline().split(" ")]
+        print("Width: {} Height: {}".format(width, height))
+        width_with_halo = width + 2  # Width including halo
+        height_with_halo = height + 2  # Height including halo
+        lscape = np.zeros((height_with_halo, width_with_halo), int)
         row = 1
         for line in f.readlines():
             values = line.split(" ")
             # Read landscape into array, padding with halo values.
             lscape[row] = [0] + [int(i) for i in values] + [0]
             row += 1
-    nlands = np.count_nonzero(lscape)
-    print("Number of land-only squares: {}".format(nlands))
+    num_land_squares = np.count_nonzero(lscape)
+    print("Number of land-only squares: {}".format(num_land_squares))
     # Pre-calculate number of land neighbors of each land square.
-    neibs = np.zeros((hh, wh), int)
-    for x in range(1, h+1):
-        for y in range(1, w+1):
-            neibs[x, y] = lscape[x-1, y] + lscape[x+1, y] + lscape[x, y-1] + lscape[x, y+1]
+    num_neighbors = np.zeros((height_with_halo, width_with_halo), int)
+    for x in range(1, height+1):
+        for y in range(1, width+1):
+            num_neighbors[x, y] = lscape[x-1, y] + lscape[x+1, y] + lscape[x, y-1] + lscape[x, y+1]
 
-    ms = initialize_density_array(lscape, mseed, h, w)
-    fs = initialize_density_array(lscape, fseed, h, w)
+    mouse_density = initialize_density_array(lscape, mouse_seed, height, width)
+    fox_density = initialize_density_array(lscape, fox_seed, height, width)
 
     # Create copies of initial maps and arrays for PPM file maps.
     # Reuse these so we don't need to create new arrays going
     # round the simulation loop.
-    ms_nu = ms.copy()
-    fs_nu = fs.copy()
-    mcols = np.zeros((h, w), int)
-    fcols = np.zeros((h, w), int)
-    if nlands != 0:
-        am = np.sum(ms) / nlands
-        af = np.sum(fs) / nlands
+    mouse_density_new = mouse_density.copy()
+    fox_density_new = fox_density.copy()
+    mouse_color_map = np.zeros((height, width), int)
+    fox_color_map = np.zeros((height, width), int)
+    if num_land_squares != 0:
+        avg_mice = np.sum(mouse_density) / num_land_squares
+        avg_foxes = np.sum(fox_density) / num_land_squares
     else:
-        am = 0
-        af = 0
-    print("Averages. Timestep: {} Time (s): {:.1f} Mice: {:.17f} Foxes: {:.17f}".format(0, 0, am, af))
+        avg_mice = 0
+        avg_foxes = 0
+    print("Averages. Timestep: {} Time (s): {:.1f} Mice: {:.17f} Foxes: {:.17f}".format(0, 0, avg_mice, avg_foxes))
     with open("averages.csv", "w") as f:
-        hdr = "Timestep,Time,Mice,Foxes\n"
-        f.write(hdr)
-    tot_ts = int(d / dt)
-    for i in range(tot_ts):
-        if not i % t:
-            mm = np.max(ms)
-            mf = np.max(fs)
-            if nlands != 0:
-                am = np.sum(ms) / nlands
-                af = np.sum(fs) / nlands
+        header = "Timestep,Time,Mice,Foxes\n"
+        f.write(header)
+    total_time_steps = int(duration / delta_t)
+    for i in range(total_time_steps):
+        if not i % time_step_interval:
+            max_mice_density = np.max(mouse_density)
+            max_fox_density = np.max(fox_density)
+            if num_land_squares != 0:
+                avg_mice = np.sum(mouse_density) / num_land_squares
+                avg_foxes = np.sum(fox_density) / num_land_squares
             else:
-                am = 0
-                af = 0
-            print("Averages. Timestep: {} Time (s): {:.1f} Mice: {:.17f} Foxes: {:.17f}".format(i, i*dt, am, af))
+                avg_mice = 0
+                avg_foxes = 0
+            print("Averages. Timestep: {} Time (s): {:.1f} Mice: {:.17f} Foxes: {:.17f}".format(i, i*delta_t, avg_mice, avg_foxes))
             with open("averages.csv", "a") as f:
-                f.write("{},{:.1f},{:.17f},{:.17f}\n".format(i, i*dt, am, af))
-            for x in range(1, h+1):
-                for y in range(1, w+1):
+                f.write("{},{:.1f},{:.17f},{:.17f}\n".format(i, i*delta_t, avg_mice, avg_foxes))
+            for x in range(1, height+1):
+                for y in range(1, width+1):
                     if lscape[x, y]:
-                        if mm != 0:
-                            mcol = (ms[x, y] / mm) * 255
+                        if max_mice_density != 0:
+                            mouse_color = (mouse_density[x, y] / max_mice_density) * 255
                         else:
-                            mcol = 0
-                        if mf != 0:
-                            fcol = (fs[x, y] / mf) * 255
+                            mouse_color = 0
+                        if max_fox_density != 0:
+                            fox_color = (fox_density[x, y] / max_fox_density) * 255
                         else:
-                            fcol = 0
-                        mcols[x-1, y-1] = mcol
-                        fcols[x-1, y-1] = fcol
+                            fox_color = 0
+                        mouse_color_map[x-1, y-1] = mouse_color
+                        fox_color_map[x-1, y-1] = fox_color
             with open("map_{:04d}.ppm".format(i), "w") as f:
-                hdr = "P3\n{} {}\n{}\n".format(w, h, 255)
-                f.write(hdr)
-                for x in range(h):
-                    for y in range(w):
+                header = "P3\n{} {}\n{}\n".format(width, height, 255)
+                f.write(header)
+                for x in range(height):
+                    for y in range(width):
                         if lscape[x+1, y+1]:
-                            f.write("{} {} {}\n".format(fcols[x, y], mcols[x, y], 0))
+                            f.write("{} {} {}\n".format(fox_color_map[x, y], mouse_color_map[x, y], 0))
                         else:
                             f.write("{} {} {}\n".format(0, 200, 255))
-        for x in range(1, h+1):
-            for y in range(1, w+1):
+        for x in range(1, height+1):
+            for y in range(1, width+1):
                 if lscape[x, y]:
-                    ms_nu[x, y] = ms[x, y] + dt * ((r * ms[x, y]) - (a * ms[x, y] * fs[x, y]) + k * ((ms[x-1, y] + ms[x+1, y] + ms[x, y-1] + ms[x, y+1]) - (neibs[x, y] * ms[x, y])))
-                    if ms_nu[x, y] < 0:
-                        ms_nu[x, y] = 0
-                    fs_nu[x, y] = fs[x, y] + dt * ((b * ms[x, y] * fs[x, y]) - (m * fs[x, y]) + l * ((fs[x-1, y] + fs[x+1, y] + fs[x, y-1] + fs[x, y+1]) - (neibs[x, y] * fs[x, y])))
-                    if fs_nu[x, y] < 0:
-                        fs_nu[x, y] = 0
+                    mouse_density_new[x, y] = mouse_density[x, y] + delta_t * (
+                        (mouse_birth_rate * mouse_density[x, y]) -
+                        (mouse_death_rate * mouse_density[x, y] * fox_density[x, y]) +
+                        mouse_diffusion_rate * (
+                            (mouse_density[x-1, y] + mouse_density[x+1, y] + mouse_density[x, y-1] + mouse_density[x, y+1]) -
+                            (num_neighbors[x, y] * mouse_density[x, y])
+                        )
+                    )
+                    if mouse_density_new[x, y] < 0:
+                        mouse_density_new[x, y] = 0
+                    fox_density_new[x, y] = fox_density[x, y] + delta_t * (
+                        (fox_birth_rate * mouse_density[x, y] * fox_density[x, y]) -
+                        (fox_death_rate * fox_density[x, y]) +
+                        fox_diffusion_rate * (
+                            (fox_density[x-1, y] + fox_density[x+1, y] + fox_density[x, y-1] + fox_density[x, y+1]) -
+                            (num_neighbors[x, y] * fox_density[x, y])
+                        )
+                    )
+                    if fox_density_new[x, y] < 0:
+                        fox_density_new[x, y] = 0
         # Swap arrays for next iteration.
-        tmp = ms
-        ms = ms_nu
-        ms_nu = tmp
-        tmp = fs
-        fs = fs_nu
-        fs_nu = tmp
+        tmp = mouse_density
+        mouse_density = mouse_density_new
+        mouse_density_new = tmp
+        tmp = fox_density
+        fox_density = fox_density_new
+        fox_density_new = tmp
 
 if __name__ == "__main__":
     simCommLineIntf()
