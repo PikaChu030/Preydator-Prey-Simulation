@@ -49,13 +49,13 @@ $ python -m predator_prey.simulate_predator_prey -f ../landscapes/10x20.dat
 | Flag | Parameter | Description | Default Value |
 | ---- | --------- |------------ | ------------- |
 | -h | --help | Show help message and exit | - |
-| -r | --birth-mice | Birth rate of mice | 0.08 |
-| -a | --death-mice | Rate at which foxes eat mice | 0.04 |
+| -r | --birth-mice | Birth rate of mice | 0.1 |
+| -a | --death-mice | Rate at which foxes eat mice | 0.05 |
 | -k | --diffusion-mice | Diffusion rate of mice | 0.2 |
-| -b | --birth-foxes | Birth rate of foxes | 0.02 |
-| -m | --death-foxes  | Rate at which foxes starve | 0.06 |
+| -b | --birth-foxes | Birth rate of foxes | 0.03 |
+| -m | --death-foxes  | Rate at which foxes starve | 0.09 |
 | -l | --diffusion-foxes | Diffusion rate of foxes | 0.2 |
-| -dt | --delta-t | Time step size (seconds) | 0.4 |
+| -dt | --delta-t | Time step size (seconds) | 0.5 |
 | -t | --time_step | Number of time steps at which to output files | 10 |
 | -d | --duration  | Time to run the simulation (seconds) | 500 |
 | -f | --landscape-file | Input landscape file | - |
@@ -230,3 +230,12 @@ To edit a run configuration:
 * Select Run menu, Edit Configurations...
 * Click the configuration you want to edit.
 * For running `predator_prey.simulate_predator_prey` with different command-line parameters, you can add these to, and edit them within, the Parameters field in the Configuration form. Alternatively, you can create run configurations with different names for different parameter sets.
+
+Upload the changes to your personal repository to GitLab:
+
+$ cd ../sxxxxxxx
+$ git add .
+$ git status
+$ git commit -m "Populate repo with source code"
+$ git push origin main
+
