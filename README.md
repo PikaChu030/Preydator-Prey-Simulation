@@ -233,9 +233,10 @@ To edit a run configuration:
 
 Upload the changes to your personal repository to GitLab:
 
+```console
 $ cd ../sxxxxxxx
 $ git add .
 $ git status
 $ git commit -m "Populate repo with source code"
 $ git push origin main
-
+```
