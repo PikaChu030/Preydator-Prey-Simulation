@@ -1,7 +1,3 @@
-'''Predator-prey simulation. Foxes and mice.
-
-Version 3.0, last updated in December 2024.
-'''
 from argparse import ArgumentParser
 import numpy as np
 import random
@@ -111,6 +107,18 @@ def write_ppm_file(i, mouse_color_map, fox_color_map, lscape, width, height):
                 else:
                     f.write("0 200 255\n")
 
+def print_and_write_averages(i, mouse_density, fox_density, num_land_squares, delta_t):
+    avg_mice = calculate_averages(mouse_density, num_land_squares)
+    avg_foxes = calculate_averages(fox_density, num_land_squares)
+    print(f"Averages. Timestep: {i} Time (s): {i * delta_t:.1f} Mice: {avg_mice:.17f} Foxes: {avg_foxes:.17f}")
+    write_averages(i, delta_t, avg_mice, avg_foxes)
+
+def generate_and_write_maps(i, mouse_density, fox_density, lscape, height, width):
+    max_mice_density = np.max(mouse_density)
+    max_fox_density = np.max(fox_density)
+    mouse_color_map, fox_color_map = generate_color_maps(mouse_density, fox_density, lscape, max_mice_density, max_fox_density, height, width)
+    write_ppm_file(i, mouse_color_map, fox_color_map, lscape, width, height)
+
 def sim(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth_rate, fox_death_rate, fox_diffusion_rate, delta_t, time_step_interval, duration, landscape_file, mouse_seed, fox_seed):
     print("Predator-prey simulation", getVersion())
     
@@ -127,11 +135,8 @@ def sim(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth_rate
     fox_density_new = fox_density.copy()
 
     # Initialize output
-    avg_mice = calculate_averages(mouse_density, num_land_squares)
-    avg_foxes = calculate_averages(fox_density, num_land_squares)
-    print(f"Averages. Timestep: 0 Time (s): 0.0 Mice: {avg_mice:.17f} Foxes: {avg_foxes:.17f}")
     write_header()
-    write_averages(0, delta_t, avg_mice, avg_foxes)
+    print_and_write_averages(0, mouse_density, fox_density, num_land_squares, delta_t)
 
     mouse_rates = (mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate)
     fox_rates = (fox_birth_rate, fox_death_rate, fox_diffusion_rate)
@@ -139,17 +144,8 @@ def sim(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth_rate
 
     for i in range(total_time_steps):
         if i % time_step_interval == 0:
-            max_mice_density = np.max(mouse_density)
-            max_fox_density = np.max(fox_density)
-
-            avg_mice = calculate_averages(mouse_density, num_land_squares)
-            avg_foxes = calculate_averages(fox_density, num_land_squares)
-
-            print(f"Averages. Timestep: {i} Time (s): {i * delta_t:.1f} Mice: {avg_mice:.17f} Foxes: {avg_foxes:.17f}")
-            write_averages(i, delta_t, avg_mice, avg_foxes)
-
-            mouse_color_map, fox_color_map = generate_color_maps(mouse_density, fox_density, lscape, max_mice_density, max_fox_density, height, width)
-            write_ppm_file(i, mouse_color_map, fox_color_map, lscape, width, height)
+            print_and_write_averages(i, mouse_density, fox_density, num_land_squares, delta_t)
+            generate_and_write_maps(i, mouse_density, fox_density, lscape, height, width)
 
         update_densities(lscape, mouse_density, fox_density, mouse_density_new, fox_density_new, num_neighbors, mouse_rates, fox_rates, delta_t, height, width)
 
