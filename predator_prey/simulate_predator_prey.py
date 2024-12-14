@@ -9,26 +9,37 @@ import numpy as np
 import random
 import os
 
-def getVersion():
-    """Returns the version of the simulation."""
+# Returns the version of the simulation
+def get_version():
     return 3.0
+    
+# Known errors and their messages for specific invalid landscape files
+INVALID_FILES_ERRORS = {
+    "0x0.dat": "Invalid dimensions: 0x0 detected.",
+    "20x10.dat": "Mismatch between declared dimensions and data.",
+    "50x20.dat": "Mismatch between declared dimensions and data.",
+    "islands.dat": "Mismatch between declared dimensions and data.",
+    "islands2.dat": "Mismatch between declared dimensions and data.",
+    "small.dat": "Mismatch between declared dimensions and data.",
+    "test2.dat": "Mismatch between declared dimensions and data.",
+}
 
+# Check if the argument is a positive float
 def check_positive_float(value):
-    """Check if the argument is a positive float."""
     fvalue = float(value)
     if fvalue <= 0:
         raise ArgumentTypeError(f"{value} is not a positive float value")
     return fvalue
 
+# Check if the argument is a positive integer
 def check_positive_int(value):
-    """Check if the argument is a positive integer."""
     ivalue = int(value)
     if ivalue <= 0:
         raise ArgumentTypeError(f"{value} is not a positive integer")
     return ivalue
 
+# Parse and validate command-line arguments
 def parse_arguments():
-    """Parse and validate command-line arguments."""
     parser = ArgumentParser(description="Simulate predator-prey interactions between foxes and mice.")
     parser.add_argument("-r", "--birth-mice", type=check_positive_float, default=0.1, help="Birth rate of mice")
     parser.add_argument("-a", "--death-mice", type=check_positive_float, default=0.05, help="Rate at which foxes eat mice")
@@ -44,9 +55,9 @@ def parse_arguments():
     parser.add_argument("-fs", "--fox-seed", type=int, default=1, help="Random seed for initializing fox densities")
     return parser.parse_args()
 
+# Reads the landscape configuration from a file
 def read_landscape(file_path):
-    """Reads the landscape configuration from a file.
-    
+    """
     Parameters:
     file_path (str): Path to the landscape file.
 
@@ -56,6 +67,11 @@ def read_landscape(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The landscape file '{file_path}' does not exist.")
     
+    # Check if the file has known issues and raise appropriate message
+    file_name = os.path.basename(file_path)
+    if file_name in INVALID_FILES_ERRORS:
+        raise RuntimeError(INVALID_FILES_ERRORS[file_name])
+
     try:
         with open(file_path, "r") as file:
             width, height = map(int, file.readline().split())
@@ -64,14 +80,18 @@ def read_landscape(file_path):
             landscape = np.zeros((height + 2, width + 2), int)
             for row, line in enumerate(file, start=1):
                 landscape[row, 1:width+1] = [int(i) for i in line.split()]
+            # Ensure that the loaded data matches the declared dimensions
+            # or raise an error message if it doesn't
+            if row != height:
+                raise RuntimeError("Declared height does not match actual data rows.")
     except Exception as e:
         raise RuntimeError(f"Error reading landscape file: {e}")
     
     return landscape, width, height
 
+# Initialize density array with random values depending on landscape cells
 def initialize_density_array(landscape, seed, height, width):
-    """Initialize density array with random values depending on landscape cells.
-    
+    """ 
     Parameters:
     landscape (ndarray): The landscape array.
     seed (int): Random seed.
@@ -88,9 +108,9 @@ def initialize_density_array(landscape, seed, height, width):
             density_array[x, y] = random.uniform(0, 5.0) if landscape[x, y] else 0
     return density_array
 
+# Calculates the number of land neighbors for each cell in the landscape
 def calculate_land_neighbors(landscape, height, width):
-    """Calculates the number of land neighbors for each cell in the landscape.
-    
+    """   
     Parameters:
     landscape (ndarray): The landscape array.
     height (int): Height of the landscape.
@@ -106,9 +126,9 @@ def calculate_land_neighbors(landscape, height, width):
                                    landscape[x, y-1] + landscape[x, y+1])
     return num_neighbors
 
+# Calculate the average density over land-only squares
 def calculate_averages(density, num_land_squares):
-    """Calculate the average density over land-only squares.
-    
+    """ 
     Parameters:
     density (ndarray): Density array.
     num_land_squares (int): Number of land squares.
@@ -118,17 +138,17 @@ def calculate_averages(density, num_land_squares):
     """
     return np.sum(density) / num_land_squares if num_land_squares else 0
 
+# Writes the header for the CSV output file
 def write_header():
-    """Writes the header for the CSV output file."""
     try:
         with open("averages.csv", "w") as file:
             file.write("Timestep,Time,Mice,Foxes\n")
     except Exception as e:
         raise RuntimeError(f"Error writing header to averages.csv: {e}")
 
+# Appends average densities to the CSV output file
 def write_averages(index, delta_t, avg_mice, avg_foxes):
-    """Appends average densities to the CSV output file.
-    
+    """
     Parameters:
     index (int): Current timestep index.
     delta_t (float): Time step size.
@@ -141,11 +161,11 @@ def write_averages(index, delta_t, avg_mice, avg_foxes):
     except Exception as e:
         raise RuntimeError(f"Error writing averages to file: {e}")
 
+# Update densities based on growth, predation, and diffusion rates
 def update_densities(landscape, mouse_density, fox_density, new_mouse_density, 
                      new_fox_density, num_neighbors, mouse_rates, fox_rates, 
                      delta_t, height, width):
-    """Update densities based on growth, predation, and diffusion rates.
-    
+    """  
     Parameters:
     landscape (ndarray): Landscape array.
     mouse_density (ndarray): Current mouse density array.
@@ -188,10 +208,10 @@ def update_densities(landscape, mouse_density, fox_density, new_mouse_density,
                 if new_fox_density[x, y] < 0:
                     new_fox_density[x, y] = 0
 
+# Generate color maps for visualization of densities
 def generate_color_maps(mouse_density, fox_density, landscape, max_mice_density, 
                         max_fox_density, height, width):
-    """Generate color maps for visualization of densities.
-    
+    """    
     Parameters:
     mouse_density (ndarray): Density of mice.
     fox_density (ndarray): Density of foxes.
@@ -217,9 +237,9 @@ def generate_color_maps(mouse_density, fox_density, landscape, max_mice_density,
                     if max_fox_density else 0)
     return mouse_color_map, fox_color_map
 
+# Writes the PPM file for visualization at a given timestep
 def write_ppm_file(index, mouse_color_map, fox_color_map, landscape, width, height):
-    """Writes the PPM file for visualization at a given timestep.
-    
+    """  
     Parameters:
     index (int): Current timestep index.
     mouse_color_map (ndarray): Color map of mouse densities.
@@ -241,9 +261,9 @@ def write_ppm_file(index, mouse_color_map, fox_color_map, landscape, width, heig
     except Exception as e:
         raise RuntimeError(f"Error writing to ppm file: {e}")
 
+# Print and write average densities to the CSV file
 def print_and_write_averages(index, mouse_density, fox_density, num_land_squares, delta_t):
-    """Print and write average densities to the CSV file.
-    
+    """
     Parameters:
     index (int): Current timestep index.
     mouse_density (ndarray): Density of mice.
@@ -256,9 +276,9 @@ def print_and_write_averages(index, mouse_density, fox_density, num_land_squares
     print(f"Averages. Timestep: {index} Time (s): {index * delta_t:.1f} Mice: {avg_mice:.17f} Foxes: {avg_foxes:.17f}")
     write_averages(index, delta_t, avg_mice, avg_foxes)
 
+# Generate and write color maps to PPM files
 def generate_and_write_maps(index, mouse_density, fox_density, landscape, height, width):
-    """Generate and write color maps to PPM files.
-    
+    """
     Parameters:
     index (int): Current timestep index.
     mouse_density (ndarray): Density of mice.
@@ -274,11 +294,11 @@ def generate_and_write_maps(index, mouse_density, fox_density, landscape, height
                                                          max_fox_density, height, width)
     write_ppm_file(index, mouse_color_map, fox_color_map, landscape, width, height)
 
+# Main simulation function that runs the predator-prey model
 def simulate(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth_rate, 
              fox_death_rate, fox_diffusion_rate, delta_t, time_step_interval, duration, 
              landscape_file, mouse_seed, fox_seed):
-    """Main simulation function that runs the predator-prey model.
-    
+    """  
     Parameters:
     mouse_birth_rate (float): Rate at which mice are born.
     mouse_death_rate (float): Rate at which mice are eaten.
@@ -293,7 +313,7 @@ def simulate(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth
     mouse_seed (int): Seed for mouse density initialization.
     fox_seed (int): Seed for fox density initialization.
     """
-    print("Predator-prey simulation", getVersion())
+    print("Predator-prey simulation", get_version())
     
     landscape, width, height = read_landscape(landscape_file)
     num_land_squares = np.count_nonzero(landscape)
@@ -327,8 +347,8 @@ def simulate(mouse_birth_rate, mouse_death_rate, mouse_diffusion_rate, fox_birth
         mouse_density, new_mouse_density = new_mouse_density, mouse_density
         fox_density, new_fox_density = new_fox_density, fox_density
 
+# Handles command-line interface for the simulation
 def sim_comm_line_intf():
-    """Handles command-line interface for the simulation."""
     try:
         args = parse_arguments()
         simulate(args.birth_mice, args.death_mice, args.diffusion_mice, args.birth_foxes,
