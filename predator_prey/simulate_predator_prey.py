@@ -1,3 +1,7 @@
+'''Predator-prey simulation. Foxes and mice.
+
+Version 3.0, last updated in December 2024.
+'''
 from argparse import ArgumentParser
 import numpy as np
 import random
