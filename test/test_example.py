@@ -6,7 +6,7 @@ import csv
 
 # pytest for get version
 def testGetVersion():
-    assert simulate_predator_prey.getVersion() == 3.0
+    assert simulate_predator_prey.get_version() == 3.0
 
 # Directory paths
 DATA_DIR = './landscapes/'
