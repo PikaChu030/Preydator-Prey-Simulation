@@ -38,10 +38,10 @@ $ python -m predator_prey.simulate_predator_prey \
 
 (where `\` denotes a line continuation character)
 
-For example, to run using the default map, [10x20.dat](../landscapes/10x20.dat), with default values for the other parameters:
+For example, to run using the default map, [10x20.dat](./landscapes/10x20.dat), with default values for the other parameters:
 
 ```console
-$ python -m predator_prey.simulate_predator_prey -f ../landscapes/10x20.dat
+$ python -m predator_prey.simulate_predator_prey -f ./landscapes/10x20.dat
 ```
 
 ### Command-line parameters
