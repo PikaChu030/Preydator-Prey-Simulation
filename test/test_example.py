@@ -1,19 +1,23 @@
-from predator_prey import simulate_predator_prey
+import os
 import subprocess
 import pytest
-import os
 import csv
+import numpy as np
+from unittest.mock import mock_open, patch
+from predator_prey import simulate_predator_prey as spp
+from argparse import ArgumentTypeError
 
-# pytest for get version
-def testGetVersion():
-    assert simulate_predator_prey.get_version() == 3.0
-
-# Directory paths
-DATA_DIR = './landscapes/'
+# Constants for directory paths used in tests
+DATA_DIR = './landscapes'
 RESULT_DIR = './'
+CSV_FILE = "averages.csv"
+
+# Predefined invalid file errors to be confirmed during testing
+INVALID_FILES_ERRORS = spp.INVALID_FILES_ERRORS
 
 # Expected results directly in the pytest file
 EXPECTED_RESULTS = {
+    # timestep -> (time, mice_density, fox_density)
     "10x20.dat": {
         0: (0.0,2.42685957886714565,2.42685957886714565),
         150: (75.0,1.93132686050462898,2.03811390783230584),
@@ -166,23 +170,92 @@ EXPECTED_RESULTS = {
     }
 }
 
-# Expected error messages or conditions for invalid .dat files
-INVALID_FILES_ERRORS = {
-    "0x0.dat": "Invalid dimensions: 0x0 detected.",
-    "20x10.dat": "Mismatch between declared dimensions and data.",
-    "50x20.dat": "Mismatch between declared dimensions and data.",
-    "islands.dat": "Mismatch between declared dimensions and data.",
-    "islands2.dat": "Mismatch between declared dimensions and data.",
-    "small.dat": "Mismatch between declared dimensions and data.",
-    "test2.dat": "Mismatch between declared dimensions and data.",
-}
+# uni-test
 
+# Test to verify the correct version number is retrieved from the module
+def test_get_version():
+    assert spp.getVersion() == 3.0
+
+# Validator Tests
+# Test for checking positive float validation
+def test_check_positive_float():
+    assert spp.check_positive_float("0.1") == 0.1
+    with pytest.raises(ArgumentTypeError):
+        spp.check_positive_float("0")
+    with pytest.raises(ArgumentTypeError):
+        spp.check_positive_float("-1")
+    with pytest.raises(ValueError):
+        spp.check_positive_float("not_a_float")
+
+def test_check_positive_int():
+    assert spp.check_positive_int("1") == 1
+    with pytest.raises(ArgumentTypeError):
+        spp.check_positive_int("0")
+    with pytest.raises(ArgumentTypeError):
+        spp.check_positive_int("-1")
+    with pytest.raises(ValueError):
+        spp.check_positive_int("3.5")
+
+# Argument Parsing Test
+def test_parse_arguments():
+    # Simulate valid command-line arguments
+    with patch('sys.argv', [
+        'program', '-r', '0.1', '-a', '0.05', '-k', '0.2', '-b', '0.03',
+        '-m', '0.09', '-l', '0.2', '-dt', '0.5', '-t', '10', '-d', '500',
+        '-f', 'landscape.dat', '-ms', '1', '-fs', '1'
+    ]):
+        args = spp.parse_arguments()
+        assert args.birth_mice == 0.1
+    # Test missing required arguments
+    with patch('sys.argv', ['program']):
+        with pytest.raises(SystemExit):
+            spp.parse_arguments()
+
+# Landscape File Tests
+@pytest.mark.parametrize("file_name, error_message", INVALID_FILES_ERRORS.items())
+def test_invalid_input_files(file_name, error_message):
+    with patch("os.path.exists", return_value=True), \
+            patch("builtins.open", mock_open(read_data="")):
+        with pytest.raises(RuntimeError, match=error_message):
+            spp.read_landscape(file_name)
+
+# Test reading of landscape file to verify correct dimensions and content parsing
+def test_read_landscape():
+    mock_data = "3 3\n1 1 1\n1 0 1\n1 1 1\n"
+    with patch("builtins.open", mock_open(read_data=mock_data)), \
+         patch("os.path.exists", return_value=True):
+        landscape, width, height = spp.read_landscape("dummy.dat")
+        assert height == 3
+        assert width == 3
+
+    with patch("os.path.exists", return_value=False):
+        with pytest.raises(FileNotFoundError):
+            spp.read_landscape("nonexistent.dat")
+
+# Density Initialization Test
+def test_initialize_density():
+    landscape = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
+    density = spp.initialize_density(landscape, 1, 1, 1)
+    assert density[1, 1] != 0
+
+# CSV File and Average Calculation Tests
+def test_write_csv_header():
+    with patch("builtins.open", mock_open()) as mock_file:
+        spp.write_csv_header()
+        mock_file.assert_called_once_with(CSV_FILE, "w")
+        mock_file().write.assert_called_once_with("Timestep,Time,Mice,Foxes\n")
+
+def test_calculate_average_density():
+    density = np.array([[0, 0, 1], [0, 1, 0], [0, 0, 1]])
+    assert spp.calculate_average_density(density, 3) == 1
+    assert spp.calculate_average_density(density, 0) == 0
+    
+# Fixtures
 @pytest.fixture(scope="module")
 def run_simulation():
-    """
-    Fixture to execute simulation subprocess with required arguments. 
-    Returns the subprocess result.
-    """
+    '''
+    Fixture to execute simulation subprocess with required arguments.
+    '''
     def _run(dat_file):
         return subprocess.run(
             [
@@ -196,39 +269,26 @@ def run_simulation():
         )
     return _run
 
-
+# Simulation Tests
 @pytest.mark.parametrize("dat_file", EXPECTED_RESULTS.keys())
 def test_valid_simulation_output(dat_file, run_simulation):
-    """
-    Test the output of valid .dat files against expected results.
-    """
     file_path = os.path.join(DATA_DIR, dat_file)
     result = run_simulation(file_path)
-
     assert result.returncode == 0, f"Simulation execution failed for '{dat_file}'"
 
-    result_output_file = os.path.join(RESULT_DIR, "averages.csv")
-    assert os.path.exists(result_output_file), f"Output 'averages.csv' not found for '{dat_file}'"
+    result_output_file = os.path.join(RESULT_DIR, CSV_FILE)
+    assert os.path.exists(result_output_file), f"Output file not found for '{dat_file}'"
 
     with open(result_output_file, 'r') as output_file:
         reader = csv.reader(output_file)
         headers = next(reader)
-        assert headers == ["Timestep", "Time", "Mice", "Foxes"], f"CSV header mismatch for '{dat_file}'"
+        assert headers == ["Timestep", "Time", "Mice", "Foxes"], f"Header mismatch for '{dat_file}'"
 
         for row in reader:
             timestep, time, mice, foxes = map(float, row)
-            expected_data = EXPECTED_RESULTS[dat_file].get(int(timestep))
-            if expected_data:
-                expected_time, expected_mice, expected_foxes = expected_data
-                assert abs(time - expected_time) < 1e-9, f"Time mismatch at timestep {timestep} for '{dat_file}'"
-                assert abs(mice - expected_mice) < 1e-9, f"Mice count mismatch at timestep {timestep} for '{dat_file}'"
-                assert abs(foxes - expected_foxes) < 1e-9, f"Foxes count mismatch at timestep {timestep} for '{dat_file}'"
-
-
-@pytest.mark.parametrize("dat_file, expected_error", INVALID_FILES_ERRORS.items())
-def test_invalid_input_files(dat_file, expected_error):
-    """ 
-    Print informative error messages directly for invalid input files.
-    """
-    print(f"Invalid file '{dat_file}': {expected_error}")
-    assert True, f"Invalid case confirmed for '{dat_file}' with reason: {expected_error}"
+            expected = EXPECTED_RESULTS[dat_file].get(int(timestep))
+            if expected:
+                expected_time, expected_mice, expected_foxes = expected
+                assert abs(time - expected_time) < 1e-9, f"Time mismatch at step {timestep} for '{dat_file}'"
+                assert abs(mice - expected_mice) < 1e-9, f"Mice count mismatch at step {timestep} for '{dat_file}'"
+                assert abs(foxes - expected_foxes) < 1e-9, f"Fox count mismatch at step {timestep} for '{dat_file}'"
