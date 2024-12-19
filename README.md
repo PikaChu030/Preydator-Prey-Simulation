@@ -1,3 +1,17 @@
+
+```console
+$ pip install radon
+$ pip install line_profiler
+$ pip install memory_profiler
+
+python test/profile_simulation.py
+
+pip install snakeviz
+snakeviz ./test/cprofile_results.prof
+
+
+```
+
 # MSc Programming Skills Python predator-prey simulation
 
 ## Requirements
