@@ -1,17 +1,4 @@
 
-```console
-$ pip install radon
-$ pip install line_profiler
-$ pip install memory_profiler
-
-python test/profile_simulation.py
-
-pip install snakeviz
-snakeviz ./test/cprofile_results.prof
-
-
-```
-
 # MSc Programming Skills Python predator-prey simulation
 
 ## Requirements
@@ -19,6 +6,10 @@ snakeviz ./test/cprofile_results.prof
 * Python 3.x
 * [numpy](https://numpy.org/)
 * [pytest](https://pytest.org/)
+* [line_profiler](https://pypi.org/project/line-profiler/)
+* [memory_profiler](https://pypi.org/project/memory-profiler/)
+* [matplotlib](https://pypi.org/project/matplotlib/)
+* [radon](https://pypi.org/project/radon/)
 
 To get Python 3 on Cirrus, run:
 
@@ -30,7 +21,103 @@ The Anaconda Python distribution includes numpy and many other useful Python pac
 
 ---
 
-## Usage
+# How to run this model
+
+## Run predator-prey simulation
+
+First, run the simulation with selected map.
+For example, using [10x20.dat](./landscapes/10x20.dat), with default values for the other parameters:
+
+```console
+$ python -m predator_prey.simulate_predator_prey -f ./landscapes/10x20.dat
+```
+
+Or, simply run the script, [run_all_simulation.py](./predator_prey/run_all_simulation.py), to get all maps in landscapes files simulated.
+
+```console
+$ python -m predator_prey.run_all_simulation
+```
+
+By running the script, [run_all_simulation.py](./predator_prey/run_all_simulation.py), you can know the numbers of valid and invalid inputs.
+
+---
+
+## Run predator-prey simulation pytest
+
+Whenever refactoring the code, you'll need to check if the behavior of code, [simulate_predator_prey.py](./predator_prey/simulate_predator_prey.py), acts as before.
+This pytest script, [test_example.py](./test/test_example.py), will provide you an 100% coverage of code test.
+
+```console
+$ pytest
+======================================= test session starts =======================================
+...
+Collected 30 items
+
+test/test_example.py .............................                                                                      [100%]
+
+======================================== 30 passed in 33.48s ========================================
+```
+
+Every time you make a code change, make sure to run pytest for the same functionality.
+
+---
+
+## Run predator-prey performance experiment
+
+The profile analysis of the source code were wriiten in the script, [profile_simulation.py](./test/profile_simulation.py).
+Before you run it, you have to install some packages:
+
+```console
+$ pip install numpy pytest line_profiler memory_profiler matplotlib radon
+```
+
+Then, you can start doing profile analysis to the source code.
+To identify the bottlenecks and hotspots in the program, you have to choose a valid map and fix all the other input parameters.
+For example, this script used [test.dat](./landscapes/test.dat), with default values for the other parameters, as this map has the longest calculation time:
+
+```console
+$ python test/profile_simulation.py
+
+Running cProfile...
+...
+
+Running line_profiler...
+...
+
+Running memory profiler with visualization...
+...
+
+Running Complexity Analysis...
+...
+```
+
+You'll see some texts related to each part of profiling analysis.
+
+### Visulaize the performance experiment
+
+If you find these texts analysis is hard to read, you can reach out to visualization tools.
+
+* For cprofile output, find "cprofile_results.prof", it should be located at root directory.
+Drag this file to your local desktop, and run the command line ON YOUR LOCAL:
+
+```console
+$ pip install snakeviz
+$ snakeviz ./PATH/TO/YOUR/FILE/cprofile_results.prof
+```
+
+The reason that you should run on your local desktop is because Cirrus does not provide GPU related tools to visualize it.
+
+* For memory_profile output, find "memory_usage_plot.png", it should be located at root directory.
+
+```console
+$ display ./memory_usage_plot.png
+```
+
+If Cirrus cannot open this file, drag this file to your local desktop and open with PNG file.
+
+---
+
+## Other Detailed Usage
 
 To see help:
 
@@ -244,13 +331,3 @@ To edit a run configuration:
 * Select Run menu, Edit Configurations...
 * Click the configuration you want to edit.
 * For running `predator_prey.simulate_predator_prey` with different command-line parameters, you can add these to, and edit them within, the Parameters field in the Configuration form. Alternatively, you can create run configurations with different names for different parameter sets.
-
-Upload the changes to your personal repository to GitLab:
-
-```console
-$ cd ../sxxxxxxx
-$ git add .
-$ git status
-$ git commit -m "Populate repo with source code"
-$ git push origin main
-```
