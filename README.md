@@ -8,7 +8,7 @@
 * [pytest](https://pytest.org/)
 * [line_profiler](https://pypi.org/project/line-profiler/)
 * [memory_profiler](https://pypi.org/project/memory-profiler/)
-* [matplotlib](https://pypi.org/project/matplotlib/)clearcc
+* [matplotlib](https://pypi.org/project/matplotlib/)
 * [radon](https://pypi.org/project/radon/)
 * [memray](https://pypi.org/project/memray/)
 
