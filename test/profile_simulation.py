@@ -1,14 +1,16 @@
 import cProfile
+import subprocess
 import pstats
 from line_profiler import LineProfiler
-from memory_profiler import memory_usage
 import os
 import sys
-import matplotlib 
-matplotlib.use('Agg') # Use a non-interactive backend
+import matplotlib
+matplotlib.use('Agg')  # Use a non-interactive backend
 import matplotlib.pyplot as plt
 from radon.complexity import cc_visit
 import inspect
+from memory_profiler import memory_usage, profile
+import memray
 
 # Add the predator_prey directory to sys.path for module import
 sys.path.append(os.path.abspath('./predator_prey'))
@@ -65,8 +67,8 @@ def line_profile_simulation():
     profiler_wrapper(mouse_params, fox_params, delta_t, time_step_interval, duration, landscape_file, mouse_seed, fox_seed)
     profiler.print_stats()
 
-def memory_profile_simulation():
-    # Define parameters for the simulation
+def memory_profiling():
+    # Define the simulation parameters
     mouse_params = spp.BiomeParameters(0.1, 0.05, 0.2)
     fox_params = spp.BiomeParameters(0.03, 0.09, 0.2)
     delta_t = 0.5
@@ -76,38 +78,34 @@ def memory_profile_simulation():
     mouse_seed = 1
     fox_seed = 1
 
-    # Capture memory usage while running the simulation
-    mem_usage = memory_usage(
-        (spp.simulate, (mouse_params, fox_params, delta_t, time_step_interval, duration, landscape_file, mouse_seed, fox_seed)),
-        interval=0.1, retval=False
-    )
+    def run_simulation():
+        spp.simulate(mouse_params, fox_params, delta_t, time_step_interval,
+                     duration, landscape_file, mouse_seed, fox_seed)
 
-    # Plot the memory usage
-    plot_results(mem_usage, "Memory Usage Over Time", "Time (s)", "Memory Usage (MB)")
-
-    # Generate a plain text memory usage report
-    print_memory_usage_report(mem_usage)
-
-def print_memory_usage_report(memory_data):
-    # Print a textual representation of memory usage statistics
-    max_memory = max(memory_data)
-    total_samples = len(memory_data)
-    print("\nMemory Usage Report:")
-    print(f"Total Samples Taken: {total_samples}")
-    print(f"Maximum Memory Usage: {max_memory:.2f} MB")
-    print(f"Average Memory Usage: {sum(memory_data) / total_samples:.2f} MB")
-
-def plot_results(data, title, xlabel, ylabel):
-    # Simple function to plot profiling results
-    plt.figure(figsize=(10, 5))
-    plt.plot(data)
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.grid(True)
-    plt.savefig('memory_usage_plot.png') 
+    # Measure memory usage
+    mem_usage = memory_usage(run_simulation, interval=0.1, timeout=None)
+    
+    # Peak memory usage
+    peak_memory = max(mem_usage)
+    print(f"Peak Memory Usage: {peak_memory} MiB")
+    
+    # Plot memory usage over time
+    plt.plot(mem_usage)
+    plt.title('Memory Usage Over Time')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Memory Usage (MiB)')
+    plt.savefig('memory_usage_plot.png')
     plt.close()
     
+    # Measure memory allocation with memray
+    with memray.Tracker("memray_report.bin"):
+        run_simulation()
+        
+    # Generate memray flamegraph, summary and table reports
+    subprocess.run(['python', '-m', 'memray', 'flamegraph', 'memray_report.bin', '-o', 'flamegraph.html'])
+    subprocess.run('python -m memray summary memray_report.bin > summary.html', shell=True)
+    subprocess.run(['python', '-m', 'memray', 'table', 'memray_report.bin', '-o', 'table.html'])
+
 def analyze_function_complexity(function):
     '''
     Analyze and print the cyclomatic complexity of a given function.
@@ -161,8 +159,8 @@ if __name__ == '__main__':
     print("\nRunning line_profiler...")
     line_profile_simulation()
 
-    print("\nRunning memory profiler with visualization...")
-    memory_profile_simulation()
+    print("\nRunning memory_profiler...")
+    memory_profiling()
     
     print("\nRunning Complexity Analysis...")
     analyze_complexity()
