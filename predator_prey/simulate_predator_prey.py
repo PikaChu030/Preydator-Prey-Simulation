@@ -9,6 +9,8 @@ import numpy as np
 import random
 import time
 import os
+from scipy.signal import convolve2d
+from numba import njit
 
 # Class to encapsulate parameters for mouse and fox dynamics
 class BiomeParameters:
@@ -129,13 +131,12 @@ def calculate_land_neighbors(landscape, height, width):
     Returns:
     ndarray: An array of the same shape as landscape with neighbor counts.
     '''
-    neighbors = np.zeros_like(landscape)  # Create an array to store the number of neighbors
-    for x in range(1, height + 1):
-        for y in range(1, width + 1):
-            # Sum the values of the neighboring cells to count neighbors
-            neighbors[x, y] = (landscape[x - 1, y] + landscape[x + 1, y] +
-                               landscape[x, y - 1] + landscape[x, y + 1])
-    return neighbors  # Return the neighbors count array
+    kernel = np.array([[0, 1, 0],
+                       [1, 0, 1],
+                       [0, 1, 0]])
+    neighbors = convolve2d(landscape, kernel, mode='same', boundary='wrap')
+    neighbors[0, :] = neighbors[-1, :] = neighbors[:, 0] = neighbors[:, -1] = 0
+    return neighbors
 
 # Calculate the average density over land-only squares
 def calculate_average_density(density, num_land_squares):
@@ -172,6 +173,7 @@ def write_averages(index, delta_t, avg_mice, avg_foxes):
         raise RuntimeError(f"Error writing averages to file: {e}")
 
 # Update densities based on growth, predation, and diffusion rates
+@njit
 def update_densities(landscape, mouse_density, fox_density, new_mouse_density,
                      new_fox_density, neighbors, mouse_params, fox_params, delta_t, height, width):
     '''  
@@ -230,19 +232,26 @@ def generate_color_maps(mouse_density, fox_density, landscape, max_mice_density,
     Returns:
     tuple: Color maps for mice and fox densities.
     '''
+    # Initialize color maps directly
     mouse_color_map = np.zeros((height, width), int)
     fox_color_map = np.zeros((height, width), int)
-    for x in range(1, height + 1):
-        for y in range(1, width + 1):
-            if landscape[x, y]:  # If it is a land cell
-                # Map densities to color intensity on a scale of 0-255
-                mouse_color_map[x - 1, y - 1] = (
-                    int((mouse_density[x, y] / max_mice_density) * 255)
-                    if max_mice_density else 0)
-                fox_color_map[x - 1, y - 1] = (
-                    int((fox_density[x, y] / max_fox_density) * 255)
-                    if max_fox_density else 0)
-    return mouse_color_map, fox_color_map  # Return color maps
+
+    # Extract relevant sections of arrays
+    core_landscape = landscape[1:height+1, 1:width+1]
+    core_mouse_density = mouse_density[1:height+1, 1:width+1]
+    core_fox_density = fox_density[1:height+1, 1:width+1]
+
+    # Calculate mouse and fox color maps with numpy broadcasting
+    if max_mice_density > 0:
+        mouse_color_map = ((core_mouse_density / max_mice_density) * 255).astype(int)
+    if max_fox_density > 0:
+        fox_color_map = ((core_fox_density / max_fox_density) * 255).astype(int)
+
+    # Apply landscape mask to reset values outside land areas (ensures non-landscape cells are zeroed)
+    mouse_color_map *= core_landscape
+    fox_color_map *= core_landscape
+
+    return mouse_color_map, fox_color_map
 
 # Writes the PPM file for visualization at a given timestep
 def write_ppm_file(index, mouse_color_map, fox_color_map, landscape, width, height):
