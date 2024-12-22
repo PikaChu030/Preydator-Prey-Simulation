@@ -172,11 +172,12 @@ def write_averages(index, delta_t, avg_mice, avg_foxes):
     except Exception as e:
         raise RuntimeError(f"Error writing averages to file: {e}")
 
-# Update densities based on growth, predation, and diffusion rates
+# Define the BiomeParameters in a way compatible with Numba
 @njit
 def update_densities(landscape, mouse_density, fox_density, new_mouse_density,
-                     new_fox_density, neighbors, mouse_params, fox_params, delta_t, height, width):
-    '''  
+                     new_fox_density, neighbors, mouse_birth, mouse_death, mouse_diffusion,
+                     fox_birth, fox_death, fox_diffusion, delta_t, height, width):
+    '''
     Parameters:
     landscape (ndarray): Landscape array.
     mouse_density (ndarray): Current mouse density array.
@@ -184,8 +185,12 @@ def update_densities(landscape, mouse_density, fox_density, new_mouse_density,
     new_mouse_density (ndarray): Next state of mouse density array.
     new_fox_density (ndarray): Next state of fox density array.
     neighbors (ndarray): Number of land neighbors for each cell.
-    mouse_params (BiomeParameters): Parameters for mouse dynamics.
-    fox_params (BiomeParameters): Parameters for fox dynamics.
+    mouse_birth (float): Birth rate for mice.
+    mouse_death (float): Death rate due to foxes for mice.
+    mouse_diffusion (float): Diffusion rate for mice.
+    fox_birth (float): Birth rate for foxes.
+    fox_death (float): Death rate for foxes.
+    fox_diffusion (float): Diffusion rate for foxes.
     delta_t (float): Time step size.
     height (int): Height of the landscape.
     width (int): Width of the landscape.
@@ -197,9 +202,9 @@ def update_densities(landscape, mouse_density, fox_density, new_mouse_density,
                 mn = neighbors[x, y]
 
                 # Calculate mouse dynamics
-                growth = mouse_params.birth_rate * md
-                predation = mouse_params.death_rate * md * fd
-                diffusion_mice = mouse_params.diffusion_rate * (
+                growth = mouse_birth * md
+                predation = mouse_death * md * fd
+                diffusion_mice = mouse_diffusion * (
                     mouse_density[x - 1, y] + mouse_density[x + 1, y] +
                     mouse_density[x, y - 1] + mouse_density[x, y + 1] - mn * md)
                 new_mouse_density[x, y] = md + delta_t * (growth - predation + diffusion_mice)
@@ -207,9 +212,9 @@ def update_densities(landscape, mouse_density, fox_density, new_mouse_density,
                     new_mouse_density[x, y] = 0
 
                 # Calculate fox dynamics
-                growth_fox = fox_params.birth_rate * md * fd
-                starvation = fox_params.death_rate * fd
-                diffusion_foxes = fox_params.diffusion_rate * (
+                growth_fox = fox_birth * md * fd
+                starvation = fox_death * fd
+                diffusion_foxes = fox_diffusion * (
                     fox_density[x - 1, y] + fox_density[x + 1, y] +
                     fox_density[x, y - 1] + fox_density[x, y + 1] - mn * fd)
                 new_fox_density[x, y] = fd + delta_t * (growth_fox - starvation + diffusion_foxes)
@@ -311,48 +316,40 @@ def generate_write_maps(index, mouse_density, fox_density, landscape, height, wi
                                                          max_fox_density, height, width)
     write_ppm_file(index, mouse_color_map, fox_color_map, landscape, width, height)  # Write to file
 
-# Main simulation function that runs the predator-prey model
+# Main simulation function
 def simulate(mouse_params, fox_params, delta_t, time_step_interval, duration,
              landscape_file, mouse_seed, fox_seed):
-    '''  
-    Parameters:
-    mouse_params (BiomeParameters): Parameters for mouse dynamics.
-    fox_params (BiomeParameters): Parameters for fox dynamics.
-    delta_t (float): Time step size.
-    time_step_interval (int): Interval of steps to output data.
-    duration (int): Total duration of the simulation in timesteps.
-    landscape_file (str): Path to the landscape configuration file.
-    mouse_seed (int): Seed for mouse density initialization.
-    fox_seed (int): Seed for fox density initialization.
-    '''
-    # Read the landscape configuration
+
     landscape, width, height = read_landscape(landscape_file)
-    num_land_squares = np.count_nonzero(landscape)  # Count number of land squares
+    num_land_squares = np.count_nonzero(landscape)
     print(f"Number of land-only squares: {num_land_squares}")
 
-    neighbors = calculate_land_neighbors(landscape, height, width)  # Calculate land neighbors
+    neighbors = calculate_land_neighbors(landscape, height, width)
 
     # Initialize densities for mice and foxes
     mouse_density = initialize_density(landscape, mouse_seed, height, width)
     fox_density = initialize_density(landscape, fox_seed, height, width)
 
-    new_mouse_density = mouse_density.copy()  # Prepare arrays for density updates
+    new_mouse_density = mouse_density.copy()
     new_fox_density = fox_density.copy()
 
-    write_csv_header()  # Initialize averages CSV file
-    print_write_averages(0, mouse_density, fox_density, num_land_squares, delta_t)  # Output initial averages
+    write_csv_header()
+    print_write_averages(0, mouse_density, fox_density, num_land_squares, delta_t)
 
-    total_time_steps = int(duration / delta_t)  # Calculate total number of timesteps
+    total_time_steps = int(duration / delta_t)
+
+    # Pass parameters as individual floats to Numba functions
+    mouse_birth, mouse_death, mouse_diffusion = mouse_params.birth_rate, mouse_params.death_rate, mouse_params.diffusion_rate
+    fox_birth, fox_death, fox_diffusion = fox_params.birth_rate, fox_params.death_rate, fox_params.diffusion_rate
 
     for i in range(total_time_steps):
-        if i % time_step_interval == 0:  # Output data at specified intervals
+        if i % time_step_interval == 0:
             print_write_averages(i, mouse_density, fox_density, num_land_squares, delta_t)
             generate_write_maps(i, mouse_density, fox_density, landscape, height, width)
 
-        # Update densities based on current state
+        # Call the Numba-compiled function with scalar parameters
         update_densities(landscape, mouse_density, fox_density, new_mouse_density,
-                         new_fox_density, neighbors, mouse_params, fox_params,
-                         delta_t, height, width)
+                         new_fox_density, neighbors, mouse_birth, mouse_death, mouse_diffusion, fox_birth, fox_death, fox_diffusion, delta_t, height, width)
 
         # Swap density arrays for next iteration
         mouse_density, new_mouse_density = new_mouse_density, mouse_density
