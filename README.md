@@ -34,10 +34,10 @@ For example, using [10x20.dat](./landscapes/10x20.dat) with default values for t
 $ python -m predator_prey.simulate_predator_prey -f ./landscapes/10x20.dat
 ```
 
-Or, simply run the script [run_all_simulation.py](./predator_prey/run_all_simulation.py) to get all maps in landscapes files simulated.
+Or, simply run the script [run_all_simulations.py](./predator_prey/run_all_simulations.py) to get all maps in landscapes files simulated.
 
 ```console
-$ python -m predator_prey.run_all_simulation
+$ python -m predator_prey.run_all_simulations
 ```
 
 By running [run_all_simulation.py](./predator_prey/run_all_simulation.py), you can know the numbers of valid and invalid inputs.

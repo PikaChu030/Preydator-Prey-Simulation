@@ -11,6 +11,7 @@ from radon.complexity import cc_visit
 import inspect
 from memory_profiler import memory_usage, profile
 import memray
+import numba
 
 # Add the predator_prey directory to sys.path for module import
 sys.path.append(os.path.abspath('./predator_prey'))
@@ -29,9 +30,18 @@ def cprofile_simulation():
     stats.strip_dirs().sort_stats('time').print_stats(10)
 
 def line_profile_simulation(func):
+    # Check if the function is compiled with Numba
+    if isinstance(func, numba.core.registry.CPUDispatcher):
+        print(f"Function {func.__name__} is compiled with Numba. Skipping line profiling.")
+        return  # Skip line profiling for Numba functions
+        
+    # Check if the function has been wrapped (common with decorators like njit)
+    if hasattr(func, '__wrapped__'):
+        func = func.__wrapped__  # Access the original function
+
     # Set up the line profiler
     profiler = LineProfiler()
-    # Decorate the function to profile
+    # Decorate the original (unwrapped) function to profile
     profiler.add_function(func)
 
     # Wrap simulation directly to profile calls to the specified function
