@@ -1,6 +1,8 @@
 
 # MSc Programming Skills Python predator-prey simulation
 
+* Read the README.md thoroughly if encountered any problems!
+
 ## Requirements
 
 * Python 3.x
@@ -11,6 +13,7 @@
 * [matplotlib](https://pypi.org/project/matplotlib/)
 * [radon](https://pypi.org/project/radon/)
 * [memray](https://pypi.org/project/memray/)
+* [numba](https://pypi.org/project/numba/)
 
 To get Python 3 on Cirrus, run:
 
@@ -26,7 +29,13 @@ The Anaconda Python distribution includes numpy and many other useful Python pac
 
 ## Run predator-prey simulation
 
-First, run the simulation with selected map.
+First, change the directory.
+
+```console
+$ cd s2749500
+```
+
+Run the simulation with selected map.
 
 For example, using [10x20.dat](./landscapes/10x20.dat) with default values for the other parameters:
 
@@ -42,6 +51,12 @@ $ python -m predator_prey.run_all_simulations
 
 By running [run_all_simulation.py](./predator_prey/run_all_simulation.py), you can know the numbers of valid and invalid inputs.
 
+```console
+...
+Total success for:15, fail for:7
+...
+```
+
 ---
 
 ## Run predator-prey simulation pytest
@@ -52,13 +67,13 @@ This pytest script, [test_example.py](./test/test_example.py), will provide you 
 
 ```console
 $ pytest
-======================================= test session starts =======================================
+======================================= test session starts =========================================
 ...
 Collected 30 items
 
-test/test_example.py .............................                                                                      [100%]
+test/test_example.py .............................                                             [100%]
 
-======================================== 30 passed in 33.48s ========================================
+======================================== 30 passed in 59.50s ========================================
 ```
 
 Every time you make a code change, make sure to run pytest for the same functionality.
@@ -69,10 +84,12 @@ Every time you make a code change, make sure to run pytest for the same function
 
 The profile analysis of the source code were wriiten in the script, [profile_simulation.py](./test/profile_simulation.py).
 
+Details were written in [s2749500-PSoc.pdf](./s2749500-PSoc.pdf).
+
 Before you run it, you have to install some packages:
 
 ```console
-$ pip install numpy pytest line_profiler memory_profiler matplotlib radon memray
+$ pip install numpy pytest line_profiler memory_profiler matplotlib radon memray numba
 ```
 
 Then, you can start doing profile analysis to the source code.
@@ -88,18 +105,31 @@ Running cProfile...
 ...
 Running line_profiler...
 ...
+(Function update_densities is compiled with Numba. Skipping line profiling.
+)
+...
 Running memory_profiler...
 ...
+Peak Memory Usage: 203.5234375 MiB
+...
+Wrote flamegraph.html
+Wrote table.html
+
 Running Complexity Analysis...
 ...
 ```
 
 You'll see some texts related to each part of profiling analysis:
 
-*Cumulative time/Internal time for different functions(cProfile)
-*Simulation time for specific function(line_profiler)
-*Peak Memory Usage for source code(memory_profiler)
-*Cyclomatic Complexity Analysis for different functions(Complexity Analysis)
+* Cumulative time/Internal time(cProfile)
+
+* Simulation time for specific function(line_profiler)
+
+* Peak Memory Usage(memory_profiler)
+
+* Cyclomatic Complexity Analysis(Complexity Analysis)
+
+*You may change the source code to compare between the original source code (choose the commit before '5c26a059') and the refactored source code(choose the commit with the latest version).
 
 ### Visulaize the performance experiment
 
@@ -134,6 +164,70 @@ Function Cyclomatic Complexity Analysis:
 Function check_positive_int: Cyclomatic Complexity = 2
 Function parse_arguments: Cyclomatic Complexity = 1
 ...
+```
+
+---
+
+## Notes
+
+* Change the simulate_predator_prey.py for original and refactored implementation to see the difference. The lateset commit is for refactored implementation.
+
+* Directory
+
+```console
+
+s2749500
+|
+|---- test
+|    |    
+|    |---- test_example.py (pytest file for code refactoring)
+|    |---- profile_simulation.py (profiling file for performance analysis)
+|
+|---- predator_prey
+|    |
+|    |---- simpulate_predator_prey.py (source code for simulation)
+|    |---- run_all_simulations.py (the script can run all landscapes file at one time and check the numbers of valid inputs)
+|
+|---- landscapes
+|    |
+|    |---- (These are invalid inputs)
+|    |---- 0x0.dat
+|    |---- 20x10.dat
+|    |---- 50x20.dat
+|    |---- island.dat
+|    |---- island2.dat
+|    |---- small.dat
+|    |---- test2.dat
+|    |---- (The others are all valid inputs)
+|    |---- *.dat
+|
+|---- experiment_analysis_data
+|    |    
+|    |---- code
+|    |    |---- simulate_predator_prey_original_code.py (raw source code without any refactor)
+|    |    |---- simulate_predator_prey_original_code.pysimulate_predator_prey_refactor_code_before_performance_experiment.py (source code with refactoring for Part I, not for performance analysis Part II)
+|    |    
+|    |---- before_hotspot_check (the content of files varys everytime we run the simulation. This is just an example)
+|    |    |---- table.html (memory_profile result)
+|    |    |---- summary.html (memory_profile result)
+|    |    |---- flamegraph.html (memory_profile result)
+|    |    |---- memray_report.bin (memray intermediate file)
+|    |    |---- memory_usage_plot.png (visulaize for memory usage)
+|    |    |---- line_profiler_update_densities.png (line_profile result)
+|    |    |---- line_profiler_update_densities.lprof (line_profile intermediate file)
+|    |    |---- cprofile_results.prof (cprofile_profile result, use 'SnakeViz' to visualize)
+|    |    |---- complexity_analysis.png (Cyclomatic Complexity Analysis result)
+|    |    
+|    |---- after_hotspot_check (the content of files varys everytime we run the simulation. This is just an example)
+|    |    |---- ... (The same with before_hotspot_check/)
+|        
+|
+|---- PredatorPreyBackgroundInformation.pdf (The background of simulation algorithm)
+|
+|---- s2749500-PSoc.pdf (Performance Analysis Project in detail)
+|
+|---- README.md
+
 ```
 
 ---
