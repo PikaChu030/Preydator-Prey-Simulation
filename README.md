@@ -1,8 +1,3 @@
-
-# MSc Programming Skills Python predator-prey simulation
-
-* Read the README.md thoroughly if encountered any problems!
-
 ## Requirements
 
 * Python 3.x
